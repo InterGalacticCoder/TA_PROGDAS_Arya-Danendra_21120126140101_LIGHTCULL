@@ -23,7 +23,7 @@ class LightCullApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("LightCull — Auto-Culling Foto Exposure")
-        self.geometry("960x690")
+        self.geometry("960x790")
         self.minsize(880, 640)
 
         self.manager = CullingManager()
