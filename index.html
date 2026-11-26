@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LightCull Web — Auto-Culling Foto Exposure</title>
+  <link rel="stylesheet" href="https://pyscript.net/releases/2024.11.1/core.css" />
+  <script type="module" src="https://pyscript.net/releases/2024.11.1/core.js"></script>
+  <style>
+    :root {
+      --bg: #141414;
+      --panel: #212121;
+      --panel-alt: #2b2b2b;
+      --border: #333333;
+      --text: #f0f0f0;
+      --muted: #9e9e9e;
+      --primary: #1f6aa5;
+      --primary-hover: #144870;
+      --secondary: #34495e;
+      --gray-btn: #636e72;
+      --green: #2ecc71;
+      --blue: #5dade2;
+      --orange: #e67e22;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 16px;
+      line-height: 1.4;
+    }
+
+    .container {
+      max-width: 1020px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .header-title {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .header h1 { font-size: 22px; }
+    .header span { color: var(--muted); font-size: 13px; }
+    .badge {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #3d3217;
+      color: #f5c542;
+      font-weight: 600;
+    }
+    .badge.ready {
+      background: #163825;
+      color: var(--green);
+    }
+
+    /* Source Bar */
+    .source-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    .source-bar label { font-size: 13px; white-space: nowrap; }
+    .source-input {
+      flex: 1;
+      min-width: 200px;
+      background: var(--panel-alt);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    /* Main Grid */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 4fr 6fr;
+      gap: 12px;
+    }
+    @media (max-width: 780px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      letter-spacing: 0.3px;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 5px;
+    }
+
+    select {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 8px;
+    }
+    select:disabled { opacity: 0.5; cursor: not-allowed; }
+    select option { background: var(--panel-alt); color: var(--text); }
+
+    .note {
+      font-size: 11.5px;
+      color: var(--muted);
+      margin-bottom: 14px;
+      min-height: 34px;
+    }
+
+    .slider-group { margin-bottom: 14px; transition: opacity 0.2s; }
+    .slider-group.disabled { opacity: 0.4; }
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+    input[type="range"]:disabled { cursor: not-allowed; }
+
+    /* Buttons */
+    button {
+      border: none;
+      border-radius: 6px;
+      padding: 9px 14px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: var(--primary); }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+    .btn-secondary { background: var(--secondary); }
+    .btn-secondary:hover:not(:disabled) { background: #2c3e50; }
+    .btn-gray { background: var(--gray-btn); }
+    .btn-gray:hover:not(:disabled) { background: #4d5659; }
+    .btn-success { background: #1e8449; }
+    .btn-success:hover:not(:disabled) { background: #196f3d; }
+
+    .btn-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    /* Preview & Progress */
+    .preview-box {
+      width: 100%;
+      height: 230px;
+      background: #191919;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      margin-bottom: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .preview-box img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: none;
+    }
+
+    .info-line { font-size: 13px; margin-bottom: 4px; word-break: break-all; }
+    .info-file { font-weight: 700; }
+
+    .progress-track {
+      width: 100%;
+      height: 10px;
+      background: var(--panel-alt);
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 10px 0 6px;
+    }
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      background: var(--primary);
+      transition: width 0.12s linear;
+    }
+    .queue-info { font-size: 12.5px; color: var(--muted); }
+
+    /* Bottom Summary & Log */
+    .summary {
+      font-size: 13.5px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .log-box {
+      width: 100%;
+      height: 120px;
+      background: #171717;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      color: #d0d0d0;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- HEADER -->
+    <div class="card header">
+      <div class="header-title">
+        <h1>LightCull</h1>
+        <span>Auto-Culling Foto Underexposed &amp; Overexposed (Web Client-Side)</span>
+      </div>
+      <div id="status-badge" class="badge">Memuat Python &amp; Pillow di browser...</div>
+    </div>
+
+    <!-- PILIH SUMBER FOTO -->
+    <div class="card source-bar">
+      <label for="folder-display">Sumber Foto:</label>
+      <input id="folder-display" class="source-input" type="text" readonly placeholder="Pilih folder atau beberapa file foto (diproses 100% lokal di browser)..." />
+      <input id="folder-input" type="file" webkitdirectory multiple hidden />
+      <input id="files-input" type="file" multiple accept="image/*" hidden />
+      <button id="btn-folder" class="btn-primary" disabled>Pilih Folder</button>
+      <button id="btn-files" class="btn-secondary" disabled>Pilih Foto</button>
+    </div>
+
+    <!-- AREA UTAMA 2 KOLOM -->
+    <div class="main-grid">
+      <!-- KIRI: PENGATURAN -->
+      <div class="card">
+        <div class="section-title">PENGATURAN ANALISIS</div>
+
+        <label class="field-label" for="mode-select">Mode Analisis (OOP 2):</label>
+        <select id="mode-select" disabled>
+          <option value="EV (Needs supported Metadata)">EV (Needs supported Metadata)</option>
+          <option value="Grayscale">Grayscale</option>
+        </select>
+
+        <p id="mode-note" class="note"></p>
+
+        <div id="ev-controls">
+          <div class="slider-group">
+            <label id="min-ev-label" class="field-label" for="min-ev-slider">Batas Gelap (Under): -2.0 EV</label>
+            <input id="min-ev-slider" type="range" min="-5.0" max="-0.5" step="0.1" value="-2.0" disabled />
+          </div>
+
+          <div class="slider-group">
+            <label id="max-ev-label" class="field-label" for="max-ev-slider">Batas Terang (Over): +2.0 EV</label>
+            <input id="max-ev-slider" type="range" min="0.5" max="5.0" step="0.1" value="2.0" disabled />
+          </div>
+        </div>
+
+        <div class="btn-stack">
+          <button id="btn-start" class="btn-primary" disabled>Mulai Culling (Queue)</button>
+          <button id="btn-undo" class="btn-secondary" disabled>Undo Terakhir (Stack)</button>
+          <button id="btn-undo-all" class="btn-gray" disabled>Kembalikan Semua</button>
+          <button id="btn-download" class="btn-success" disabled>Download Hasil (.ZIP)</button>
+        </div>
+      </div>
+
+      <!-- KANAN: PREVIEW & ANTREAN -->
+      <div class="card">
+        <div class="section-title">PREVIEW &amp; PROSES ANTREAN</div>
+
+        <div class="preview-box">
+          <span id="preview-placeholder">Belum ada foto diproses</span>
+          <img id="preview-img" alt="Preview Foto" />
+        </div>
+
+        <div id="file-info" class="info-line info-file">File: -</div>
+        <div id="result-info" class="info-line">Status: - | Detail: -</div>
+
+        <div class="progress-track">
+          <div id="progress-fill" class="progress-fill"></div>
+        </div>
+
+        <div id="queue-info" class="queue-info">
+          Sisa di Queue: 0 foto | Riwayat Undo (Stack): 0
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL BAWAH: RINGKASAN & LOG -->
+    <div class="card">
+      <div id="summary-text" class="summary">
+        RINGKASAN: Total: 0 | Normal: 0 | Underexposed: 0 | Overexposed: 0
+      </div>
+      <div id="log-box" class="log-box"></div>
+    </div>
+  </div>
+
+  <script type="py" src="./web_app.py" config="./pyscript.json"></script>
+</body>
+</html>
