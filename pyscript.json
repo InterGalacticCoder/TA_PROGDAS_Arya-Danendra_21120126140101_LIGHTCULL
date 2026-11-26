@@ -1,10 +1,8 @@
 {
   "packages": ["pillow"],
   "files": {
-    "./models/__init__.py": "./models/__init__.py",
     "./models/photo_item.py": "./models/photo_item.py",
     "./models/data_structures.py": "./models/data_structures.py",
-    "./core/__init__.py": "./core/__init__.py",
     "./core/analyzer.py": "./core/analyzer.py"
   }
 }
